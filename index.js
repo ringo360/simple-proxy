@@ -42,6 +42,7 @@ const server = http.createServer((req, res) => {
   // プロキシ先のリクエストに対してのフック
   proxy.on('proxyReq', (proxyReq, req, res) => {
     // ここにターゲット先でのfetch処理をフックするコードを追加
+	// fuck
     console.log('Hooking into proxyReq:', req.method, req.url);
 
     // 例: カスタムヘッダーを追加する場合
