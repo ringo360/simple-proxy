@@ -3,6 +3,7 @@ const url = require('url');
 const httpProxy = require('http-proxy');
 
 const proxy = httpProxy.createProxyServer({});
+const { default: fetch } = import('node-fetch'); // 変更点
 
 const server = http.createServer((req, res) => {
   // URLのクエリから目的のURLを抽出
@@ -18,23 +19,28 @@ const server = http.createServer((req, res) => {
 
   // プロキシ先のURLにリクエストを転送
   console.log("target = " + targetUrl);
-  const proxyRequest = proxy.web(req, res, { target: targetUrl });
 
-  // プロキシ先からのレスポンスを元のレスポンスにパイプ
-  proxyRequest.on('proxyRes', (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res, { end: true });
-  });
+  // ここにターゲット先でのfetch処理をフックするコードを追加
+  fetch(targetUrl)
+    .then(fetchRes => {
+      // プロキシ先からのレスポンスを元のレスポンスにパイプ
+      res.writeHead(fetchRes.status, fetchRes.headers);
+      fetchRes.body.pipe(res, { end: true });
 
-  // プロキシ先からのエラーを処理
-  proxyRequest.on('error', (err) => {
-    console.error('Proxy Error:', err);
-    res.writeHead(500, { 'Content-Type': 'text/plain' });
-    res.end('Proxy Error');
-  });
+      // ターゲット先でのfetch処理の結果をログに出力
+      return fetchRes.text();
+    })
+    .then(result => {
+      console.log('Target Fetch Result:', result);
+    })
+    .catch(err => {
+      console.error('Fetch Error:', err);
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Fetch Error');
+    });
 
   // プロキシ先のリクエストに対してのフック
-  proxyRequest.on('proxyReq', (proxyReq, req, res) => {
+  proxy.on('proxyReq', (proxyReq, req, res) => {
     // ここにターゲット先でのfetch処理をフックするコードを追加
     console.log('Hooking into proxyReq:', req.method, req.url);
 
